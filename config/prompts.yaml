@@ -1,0 +1,70 @@
+prompts:
+  # Level 1-3: Early Elementary / Simple Instructions
+  - "See the red ball. The ball is big. What color is the ball?"
+  - "I like to eat apples. Apples are crunchy. Do you like apples?"
+  - "The sun is hot and yellow. It shines in the sky. Where is the sun?"
+  - "Pick up your toys. Put them in the blue box."
+  - "Draw a green tree with three small birds."
+
+  # Level 4-6: Upper Elementary / Everyday Tasks
+  - "Tell me the steps to brush my teeth correctly."
+  - "Why do we need to wear a coat when it is snowing outside?"
+  - "Write a short story about a dog that finds a lost keys."
+  - "How do you make a peanut butter and jelly sandwich?"
+  - "Explain the difference between a square and a triangle."
+
+  # Level 7-9: Middle School / General Knowledge
+  - "What are the three branches of the United States government?"
+  - "Describe the water cycle and how rain is formed."
+  - "Explain the basic plot of the story 'Romeo and Juliet'."
+  - "Why is it important to recycle plastic and glass?"
+  - "How does a magnifying glass make things look bigger?"
+
+  # Level 10-12: High School / Conceptual Analysis
+  - "Compare and contrast the causes of World War I and World War II."
+  - "Explain the process of photosynthesis in vascular plants."
+  - "Discuss the impact of social media on teenage mental health."
+  - "Summarize the central argument of the Declaration of Independence."
+  - "Explain the relationship between supply and demand in a market economy."
+
+  # Level 13-16: Undergraduate / Technical
+  - "Describe the mechanical advantages of a planetary gear system."
+  - "Explain the role of backpropagation in training neural networks."
+  - "Analyze the legal implications of the Horizon IT scandal in the UK."
+  - "What is the difference between a smart contract and a traditional legal contract?"
+  - "Describe the physiological effects of chronic tinnitus on the auditory cortex."
+
+  # Level 17-20+: Academic / Specialized
+  - "Synthesize the arguments for and against Platonic Realism regarding mathematical entities."
+  - "Explain the phenomenon of quantum tunneling in sub-10nm MOSFET transistors."
+  - "Critique the methodology of using Laser Doppler Vibrometry for diagnosing cochlear synaptopathy."
+  - "Analyze the cryptographic vulnerabilities inherent in outdated SSL protocols."
+  - "Discuss the etymological evolution of the word 'Logos' from Heraclitus to the Neoplatonists."
+
+  # Abstract & Creative
+  - "Describe the color blue to someone who has never seen it."
+  - "Write a poem about the feeling of silence in an empty cathedral."
+  - "If time were a physical object you could hold, what would it feel like?"
+  - "Explain the concept of 'justice' without using the word 'law' or 'fairness'."
+  - "How would you explain the internet to a person from the year 1700?"
+
+  # Practical / Professional
+  - "Draft a formal apology email for a late project delivery."
+  - "Explain the 'Bottom Line Up Front' (BLUF) communication style."
+  - "What are the core requirements for a private investigator license in Tennessee?"
+  - "Summarize the key findings of a standard due diligence report for asset recovery."
+  - "Write a safety protocol for operating a CNC mill in a mechatronics lab."
+
+  # Logic & Reasoning
+  - "If all A are B, and some B are C, must some A be C? Explain."
+  - "Solve this: A father is twice as old as his son. In 10 years, he will be three times as old. How old are they?"
+  - "Explain the 'Ship of Theseus' paradox."
+  - "Describe the 'Double-Slit' experiment and its implications for wave-particle duality."
+  - "Why is the sky dark at night if the universe is infinite? (Olbers' Paradox)"
+
+  # Ethics & Philosophy
+  - "Is it ever ethical to break a law to achieve a greater good?"
+  - "Discuss the differences between Virtue Ethics and Deontology."
+  - "What is the 'Categorical Imperative' according to Immanuel Kant?"
+  - "Explain the concept of 'Eudaimonia' in Aristotelian ethics."
+  - "Discuss the 'Trolley Problem' and its relevance to autonomous vehicle programming."

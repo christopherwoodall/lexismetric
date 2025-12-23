@@ -1,0 +1,7 @@
+models:
+  - label: GPT-4o
+    id: openai/gpt-4o
+  - label: Claude-3.5
+    id: anthropic/claude-3.5-sonnet
+  - label: Gemini-2.0
+    id: google/gemini-2.5-pro
