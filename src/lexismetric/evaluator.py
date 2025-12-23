@@ -56,12 +56,8 @@ class LexisMetric:
         return results
 
     async def process_prompt(self, label, model_id, prompt, semaphore):
-        """Asynchronous worker with concurrency control via semaphore."""
-        # Note: Pre-request metrics can run outside the semaphore to save time
         in_metrics = self.get_all_readability_metrics(prompt)
-
         try:
-            # Entry point for concurrent limiting
             async with semaphore:
                 response = await self.client.chat.completions.create(
                     model=model_id, messages=[{"role": "user", "content": prompt}]
@@ -76,6 +72,7 @@ class LexisMetric:
                 "timestamp": datetime.now().isoformat(),
                 "model": label,
                 "prompt": prompt,
+                "model_output": output_text,  # New: Full output included
                 "metrics_in": in_metrics,
                 "metrics_out": out_metrics,
             }
@@ -86,16 +83,12 @@ class LexisMetric:
     async def run(self):
         models_cfg = self.load_config("models.yaml")
         prompts_cfg = self.load_config("prompts.yaml")
-
-        # semaphore with a limit of 10
         semaphore = asyncio.Semaphore(10)
-
-        tasks = []
-        for model in models_cfg["models"]:
-            for prompt in prompts_cfg["prompts"]:
-                tasks.append(
-                    self.process_prompt(model["label"], model["id"], prompt, semaphore)
-                )
+        tasks = [
+            self.process_prompt(m["label"], m["id"], p, semaphore)
+            for m in models_cfg["models"]
+            for p in prompts_cfg["prompts"]
+        ]
 
         results = await asyncio.gather(*tasks)
         final_results = [r for r in results if r is not None]
@@ -103,9 +96,7 @@ class LexisMetric:
 
     def save_logs(self, results):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"eval_{timestamp}.json"
-        full_path = self.log_path / filename
-
+        full_path = self.log_path / f"eval_{timestamp}.json"
         with open(full_path, "w") as f:
             json.dump(results, f, indent=4)
         print(f"Logs saved to: {full_path}")

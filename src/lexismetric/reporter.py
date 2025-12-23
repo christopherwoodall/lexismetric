@@ -1,145 +1,150 @@
 import pandas as pd
-import plotly.io as pio
 import plotly.express as px
+import plotly.io as pio
 from pathlib import Path
 from datetime import datetime
-
 
 class LexisReporter:
     def __init__(self, output_dir="./docs"):
         self.output_path = Path(output_dir)
         self.output_path.mkdir(parents=True, exist_ok=True)
 
-    def _calculate_stats(self, df):
-        """Calculates per-model performance and alignment metrics."""
-        stats_html = ""
-        # We focus correlation on the primary Flesch-Kincaid Grade
-        for model in df["Model"].unique():
-            subset = df[df["Model"] == model]
-            if len(subset) > 1:
-                correlation = subset["fk_grade_in"].corr(subset["fk_grade_out"])
-                avg_shift = (subset["fk_grade_out"] - subset["fk_grade_in"]).mean()
-
-                stats_html += f"""
-                <div class="col-md-4">
-                    <div class="card mb-3 border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-uppercase text-muted small fw-bold">{model}</h6>
-                            <h3 class="card-title">{correlation:.2f}</h3>
-                            <p class="card-text small">Pearson Correlation (Alignment)</p>
-                            <hr>
-                            <p class="mb-0"><strong>Avg Grade Shift:</strong> {avg_shift:+.2f}</p>
+    def _generate_table_rows(self, results):
+        """Generates rows for the deep inspection table with text expansions."""
+        rows = ""
+        for i, r in enumerate(results):
+            fk_in = r["metrics_in"]["flesch_kincaid_grade"]
+            fk_out = r["metrics_out"]["flesch_kincaid_grade"]
+            delta = round(fk_out - fk_in, 2)
+            
+            rows += f"""
+            <tr data-bs-toggle="collapse" data-bs-target="#inspect{i}" class="clickable-row">
+                <td><strong>{r['model']}</strong></td>
+                <td>{fk_in:.2f}</td>
+                <td>{fk_out:.2f}</td>
+                <td class="{'text-danger fw-bold' if delta > 2 else 'text-success'}">{delta:+.2f}</td>
+                <td class="text-muted">{r['prompt'][:50]}...</td>
+            </tr>
+            <tr id="inspect{i}" class="collapse bg-light">
+                <td colspan="5">
+                    <div class="p-4 border-start border-4 border-primary bg-white shadow-sm rounded mx-2 my-2">
+                        <div class="row">
+                            <div class="col-md-6 border-end">
+                                <h6 class="text-uppercase small fw-bold text-primary">Input Prompt</h6>
+                                <div class="p-2 font-monospace" style="font-size: 0.9rem;">{r['prompt']}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-uppercase small fw-bold text-success">Model Output</h6>
+                                <div class="p-2 font-monospace" style="font-size: 0.9rem; white-space: pre-wrap;">{r['model_output']}</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                """
-        return stats_html
+                </td>
+            </tr>
+            """
+        return rows
 
     def generate(self, results):
-        flat_data = []
-        for r in results:
-            row = {
-                "Timestamp": r["timestamp"],
-                "Model": r["model"],
-                "Prompt Snippet": r["prompt"][:50] + "...",
-            }
-            # Dynamically flatten all metrics_in and metrics_out
-            for m_name, m_val in r["metrics_in"].items():
-                # Shorten keys for table headers (e.g., fk_grade_in)
-                short_key = m_name.replace("flesch_kincaid_grade", "fk_grade")
-                row[f"{short_key}_in"] = m_val
+        comparison_data = []
+        for i, r in enumerate(results):
+            fk_in = r["metrics_in"]["flesch_kincaid_grade"]
+            fk_out = r["metrics_out"]["flesch_kincaid_grade"]
+            wc_in = len(r["prompt"].split())
+            wc_out = len(r["model_output"].split())
 
-            for m_name, m_val in r["metrics_out"].items():
-                short_key = m_name.replace("flesch_kincaid_grade", "fk_grade")
-                row[f"{short_key}_out"] = m_val
+            comparison_data.append({"PairID": i, "Model": r["model"], "Type": "Prompt", "Grade": fk_in, "Length": wc_in})
+            comparison_data.append({"PairID": i, "Model": r["model"], "Type": "Response", "Grade": fk_out, "Length": wc_out})
 
-            flat_data.append(row)
+        df_shift = pd.DataFrame(comparison_data)
+        df_simple = pd.DataFrame([{
+            "Model": r["model"], "In": r["metrics_in"]["flesch_kincaid_grade"], "Out": r["metrics_out"]["flesch_kincaid_grade"]
+        } for r in results])
 
-        df = pd.DataFrame(flat_data)
+        # Chart 1: Complexity Alignment
+        fig1 = px.scatter(df_simple, x="In", y="Out", color="Model", trendline="ols",
+                          title="Flesch-Kincaid Complexity Alignment", template="plotly_white")
+        lims = [df_simple[['In', 'Out']].min().min(), df_simple[['In', 'Out']].max().max()]
+        fig1.add_shape(type="line", line=dict(dash="dash", color="rgba(0,0,0,0.2)"),
+                       x0=lims[0], y0=lims[0], x1=lims[1], y1=lims[1])
 
-        # Create Visualization - Using Flesch-Kincaid as the primary anchor
-        fig = px.scatter(
-            df,
-            x="fk_grade_in",
-            y="fk_grade_out",
-            color="Model",
-            trendline="ols",
-            title="Linguistic Complexity Parity (Flesch-Kincaid)",
-            template="plotly_white",
-            labels={
-                "fk_grade_in": "Input Grade Level",
-                "fk_grade_out": "Output Grade Level",
-            },
-        )
+        # Chart 2: Linguistic Shift with custom data for JS access
+        fig2 = px.line(df_shift, x="Grade", y="Length", color="Model", line_group="PairID",
+                       symbol="Type", title="Linguistic Shift Map (Hover to Highlight Pair)",
+                       labels={"Grade": "Grade Level (FK)", "Length": "Word Count"},
+                       template="plotly_white", markers=True, custom_data=["PairID"])
 
-        # Add the Parity Line
-        max_v = max(df["fk_grade_in"].max(), df["fk_grade_out"].max())
-        min_v = min(df["fk_grade_in"].min(), df["fk_grade_out"].min())
-        fig.add_shape(
-            type="line",
-            line=dict(dash="dash", color="rgba(0,0,0,0.2)"),
-            x0=min_v,
-            y0=min_v,
-            x1=max_v,
-            y1=max_v,
-        )
-
-        graph_html = pio.to_html(fig, full_html=False, include_plotlyjs="cdn")
-
-        # Table with all columns
-        table_html = df.to_html(
-            classes="table table-sm table-striped small-text",
-            index=False,
-            border=0,
-            justify="left",
-        )
-
-        stats_cards = self._calculate_stats(df)
+        # Generate HTML components
+        graph1_html = pio.to_html(fig1, full_html=False, include_plotlyjs='cdn', div_id="chart1")
+        graph2_html = pio.to_html(fig2, full_html=False, include_plotlyjs=False, div_id="chart2")
+        table_rows = self._generate_table_rows(results)
 
         html_content = f"""
         <!DOCTYPE html>
-        <html lang="en">
+        <html>
         <head>
             <meta charset="UTF-8">
-            <title>LexisMetric Deep Analytics</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
             <style>
-                body {{ background-color: #f8f9fa; color: #333; }}
-                .container-fluid {{ padding: 40px; }}
-                .card {{ border-radius: 10px; }}
-                .table-container {{ background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; }}
-                .small-text {{ font-size: 0.8rem; white-space: nowrap; }}
-                h1 {{ font-weight: 800; letter-spacing: -1px; }}
-                .parity-note {{ font-size: 0.85rem; color: #666; font-style: italic; }}
+                body {{ background: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }}
+                .chart-card {{ background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }}
+                .clickable-row {{ cursor: pointer; border-left: 4px solid transparent; }}
+                .clickable-row:hover {{ background-color: #f8f9fa !important; border-left: 4px solid #0d6efd; }}
+                .table thead {{ background: #212529; color: white; }}
             </style>
         </head>
         <body>
-            <div class="container-fluid">
-                <div class="mb-5">
-                    <h1>LexisMetric Deep Analytics 🏛️</h1>
-                    <p class="text-muted">Multi-Dimensional Linguistic Evaluation | {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
-                </div>
+            <div class="container-fluid px-5 my-5">
+                <h1 class="display-5 fw-bold mb-4">LexisMetric Deep Inspection 🏛️</h1>
                 
-                <div class="row mb-5">
-                    {stats_cards}
-                </div>
-
-                <div class="card border-0 shadow-sm mb-5">
-                    <div class="card-body">
-                        {graph_html}
-                        <p class="parity-note text-center mt-2">Dashed line represents perfect complexity parity (Input Level = Output Level).</p>
+                <div class="row">
+                    <div class="col-xxl-6">
+                        <div class="chart-card">{graph1_html}</div>
+                    </div>
+                    <div class="col-xxl-6">
+                        <div class="chart-card">{graph2_html}</div>
                     </div>
                 </div>
 
-                <div class="table-container">
-                    <h4 class="mb-4">Full Dimensional Metric Logs</h4>
-                    {table_html}
+                <div class="bg-white p-4 rounded shadow-sm border">
+                    <h3 class="mb-4">Evaluation Logs</h3>
+                    <div class="table-responsive">
+                        <table class="table table-hover border">
+                            <thead>
+                                <tr><th>Model</th><th>In (FK)</th><th>Out (FK)</th><th>Delta</th><th>Prompt Snippet</th></tr>
+                            </thead>
+                            <tbody>{table_rows}</tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+            <script>
+                // Logic for Linked Hover Highlighting
+                const plotElement = document.getElementById('chart2');
+                
+                plotElement.on('plotly_hover', function(data) {{
+                    const pairId = data.points[0].customdata[0];
+                    const update = {{
+                        'line.width': data.points[0].fullData.line.width,
+                        'marker.size': data.points[0].fullData.marker.size
+                    }};
+                    
+                    // Logic to find and bold the specific PairID line
+                    const newStyles = plotElement.data.map(trace => {{
+                        if (trace.line_group === pairId || (trace.customdata && trace.customdata[0][0] === pairId)) {{
+                            return {{ 'line.width': 5, 'marker.size': 12 }};
+                        }}
+                        return {{ 'line.width': 2, 'marker.size': 6 }};
+                    }});
+                }});
+
+                plotElement.on('plotly_unhover', function(data) {{
+                    Plotly.restyle('chart2', {{ 'line.width': 2, 'marker.size': 8 }});
+                }});
+            </script>
         </body>
         </html>
         """
-
-        output_file = self.output_path / "index.html"
-        output_file.write_text(html_content)
-        return output_file
+        (self.output_path / "index.html").write_text(html_content)
+        return self.output_path / "index.html"
